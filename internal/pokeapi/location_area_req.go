@@ -1,0 +1,48 @@
+package pokeapi
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+)
+
+func (c *Client) ListLocationAreas(url *string) (LocationAreasResp, error) {
+	endpoint := "/location-area"
+	fullURL := baseURL + endpoint
+	if url != nil {
+		fullURL = *url
+	}
+	data, ok := c.cache.Get(fullURL)
+	if ok {
+		fmt.Println("data gotten from cache")
+	}
+	if !ok {
+		req, err := http.NewRequest("GET", fullURL, nil)
+		if err != nil {
+			return LocationAreasResp{}, err
+		}
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return LocationAreasResp{}, err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode > 399 {
+			return LocationAreasResp{}, fmt.Errorf("Bad status code: %v", resp.StatusCode)
+		}
+		data, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return LocationAreasResp{}, err
+		}
+	}
+	locationAreasResp := LocationAreasResp{}
+	err := json.Unmarshal(data, &locationAreasResp)
+	if err != nil {
+		return LocationAreasResp{}, err
+	}
+	if !ok {
+		c.cache.Add(fullURL, data)
+	}
+	return locationAreasResp, nil
+}
